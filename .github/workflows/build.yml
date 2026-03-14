@@ -1,0 +1,62 @@
+name: Build Bare Binaries
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bin_name: bare-darwin-arm64
+            bin_path: build/bin/bare
+          - os: macos-13
+            bin_name: bare-darwin-x64
+            bin_path: build/bin/bare
+          - os: ubuntu-latest
+            bin_name: bare-linux-x64
+            bin_path: build/bin/bare
+          - os: ubuntu-24.04-arm
+            bin_name: bare-linux-arm64
+            bin_path: build/bin/bare
+          - os: windows-latest
+            bin_name: bare-win32-x64.exe
+            bin_path: build/bin/bare.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install bare-make
+        run: npm install -g bare-make
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate build system
+        run: bare-make generate
+
+      - name: Build Bare
+        run: bare-make build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.bin_name }}
+          path: ${{ matrix.bin_path }}
+
+      - name: Upload binary to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.bin_path }}
+          asset_name: ${{ matrix.bin_name }}
